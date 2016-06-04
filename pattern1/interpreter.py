@@ -6,6 +6,8 @@ import csv
 import sys
 import unittest
 import tkinter
+from singleton import Singleton
+from singleton import SingletonManager
 
 """
 The interfaces for Controller are to make it easier for me to follow the
@@ -32,10 +34,8 @@ class DataChecker(metaclass=abc.ABCMeta):
     def check(self, filename):
         pass
 
-
-class Console(cmd.Cmd):
-    _instance = None
-    def __init__(self, view):
+class Console(cmd.Cmd, Singleton):
+    def init(self, view):
         """
 
         :return: None
@@ -44,11 +44,6 @@ class Console(cmd.Cmd):
         self.myView = view
         self.prompt = "=>> "
         self.intro = "Welcome to console!"  # defaults to None
-
-    def Instance(self):
-        if (self._instance == None):
-            self._instance == self
-        return self._instance
 
     def do_exit(self, line):
         """
@@ -138,23 +133,17 @@ class Console(cmd.Cmd):
         except IndexError:
             self.myView.getController().check()
 
-class Controller(FileReader, DataChecker):
+
+class Controller(FileReader, DataChecker, Singleton):
     """
     instancing the model and views in this way is a design decision, the views
     should be initialised when the program is started.
 
 
     """
-    _instance = None
-    def __init__(self):
+    def init(self):
         self.bmireader = ""
         self.csvfile = ""
-
-
-    def Instance(self):
-        if (self._instance == None) :
-            self._instance = self
-        return self._instance
     """
     def controllerLoop(self):
 
@@ -198,15 +187,15 @@ class Controller(FileReader, DataChecker):
             filename = None
 
         self.list = SingletonManager
-        self.myModel = self.list.Register("Model").Instance()
-        self.myViews = dict([('Console', self.list.Register("Console").Instance()),
-                             ('Chart', self.list.Register("Chart").Instance()),
-                             ('Pie', self.list.Register("Pie").Instance())])
+        self.myModel = self.list.Get("Model")
+        self.myViews = dict([('Console', self.list.Get("Console")),
+                             ('Chart', self.list.Get("Chart")),
+                             ('Pie', self.list.Get("Pie"))])
         for view in self.myViews:
             self.myViews[view].setController(self)
         self.makeCheckers()
         self.check(filename)
-        self.list.Register("Command").cmdloop()
+        self.list.Get("Command").cmdloop()
 
 
 
@@ -243,8 +232,6 @@ class Controller(FileReader, DataChecker):
 class IView(metaclass=abc.ABCMeta):
     def getID(self):
         pass
-    def Instance(self):
-        pass
 
     def readLine(self, string):
         pass
@@ -258,16 +245,9 @@ class IView(metaclass=abc.ABCMeta):
     def printLine(self, line):
         pass
 
-
-class PieView(IView):
-    _instance = None
-    def __init__(self, id):
+class PieView(IView, Singleton):
+    def init(self, id):
         self.id = id
-
-    def Instance(self):
-        if (self._instance == None) :
-            self._instance = self
-        return self._instance
 
     def getID(self):
         return self.id
@@ -297,16 +277,9 @@ class PieView(IView):
 
         return args
 
-
-class ChartView(IView):
-    _instance = None
-    def __init__(self, id):
+class ChartView(IView, Singleton):
+    def init(self, id):
         self.id = id
-
-    def Instance(self):
-        if (self._instance == None) :
-            self._instance = self
-        return self._instance
 
     def getID(self):
         return self.id
@@ -335,15 +308,9 @@ class ChartView(IView):
         return args
 
 
-class ConsoleView(IView):
-    _instance = None
+class ConsoleView(IView, Singleton):
     def __init__(self, id):
         self.id = id
-
-    def Instance(self):
-        if (self._instance == None) :
-            self._instance = self
-        return self._instance
 
     def getID(self):
         return self.id
@@ -361,9 +328,8 @@ class ConsoleView(IView):
         return self.myController
 
 
-class Model(object):
-    _instance = None
-    def __init__(self):
+class Model(Singleton):
+    def init(self, *args, **kwargs):
         self.Gender = {"0": "Male", "1": "Female"}
         self.BMI = {"0": "Normal", "1": "Overweight",
                     "2": "Obesity", "3": "Underweight"}
@@ -371,11 +337,6 @@ class Model(object):
                             "3": "Sales", "4": "BMI", "5": "Income"}
         self.allMyData = []
         self.allMyInputCheckers = []
-
-    def Instance(self):
-        if (self._instance == None) :
-            self._instance = self
-        return self._instance
 
     def check(self, reader):
         wrongLines = 0
@@ -623,29 +584,15 @@ class Enum(InputChecker):
             return False
 
 
-class SingletonManager(object):
-    def __init__(self):
-        self.name = "SingletonManager"
-        self.dict = {}
-
-    def Add(self, object, name):
-        self.dict[name] = object
-
-    def Register(self, name):
-        try:
-            return self.dict[name]
-        except (IndexError):
-            print("No such class")
-
 
 if (__name__ == '__main__'):
     SingletonManager = SingletonManager()
-    SingletonManager.Add(Model(), "Model")
-    SingletonManager.Add(ConsoleView("Console"), "Console")
-    SingletonManager.Add(PieView("Pie"), "Pie")
-    SingletonManager.Add(ChartView("Chart"), "Chart")
-    SingletonManager.Add(Controller(), "Controller")
-    SingletonManager.Add(Console(SingletonManager.Register("Console")), "Command")
-    SingletonManager.Register("Controller").Go(SingletonManager)
+    SingletonManager.Register(Model.Instance(), "Model")
+    SingletonManager.Register(ConsoleView.Instance("Console"), "Console")
+    SingletonManager.Register(PieView.Instance("Pie"), "Pie")
+    SingletonManager.Register(ChartView.Instance("Chart"), "Chart")
+    SingletonManager.Register(Controller.Instance(), "Controller")
+    SingletonManager.Register(Console.Instance( SingletonManager.Get("Console")), "Command")
+    SingletonManager.Get("Controller").Go(SingletonManager)
     # unittest.main(verbosity=2)
 
